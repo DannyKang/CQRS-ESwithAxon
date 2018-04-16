@@ -5,6 +5,15 @@ Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상
 ![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 
 Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 된다.
+```
+<dependency>
+  <groupId>org.axonframework</groupId>
+  <artifactId>axon-core</artifactId>
+  <version>${axon.version}</version>
+</dependency>
+
+```
+
 
  - core Axon's core code
  - amqp Use the MQ of the AMQP protocol, such as rabbit, to implement the distribution of events across JVMs

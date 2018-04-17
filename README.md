@@ -254,6 +254,198 @@ public class Application {
 두번째 예제에서는 JPA를 이용해서 Aggregate의 상태 정보를 저장하는 예제를 구현한다.
 JPA를 구현학 위해서 Transaction Manager를 설정하는 코드가 추가된다.
 
+### 1. Update Maven dependency
+ - Springboot 사용
+ - spring-boot-starter-data-jpa
+ - my-sql-connector
+ - spring-boot-starter-web
+
+ ```
+
+ <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>1.5.2.RELEASE</version>
+</parent>
+
+<dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+    </dependencies>
+
+```
+### 2. Database 접속 정보 추가 application.properties
+
+```
+# Datasource configuration
+spring.datasource.url=jdbc:mysql://xxx.xxx.xxx.xxx:3306/cqrs
+spring.datasource.driverClassName=com.mysql.jdbc.Driver
+spring.datasource.username=<username>
+spring.datasource.password=<password>
+spring.datasource.validation-query=SELECT 1;
+spring.datasource.initial-size=2
+spring.datasource.sql-script-encoding=UTF-8
+
+spring.jpa.database=mysql
+spring.jpa.show-sql=true
+spring.jpa.hibernate.ddl-auto=create-drop
+
+```
+### 3. Spring Configuration 추가
+
+Axon에서 JPA를 사용하기 위한 설정을 추가한다.
+
+```
+@Configuration
+@EnableAxon
+public class JpaConfig {
+
+    private static final Logger LOGGER = getLogger(JpaConfig.class);
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    @Bean
+    public EventStorageEngine eventStorageEngine(){
+        return new InMemoryEventStorageEngine();
+    }
+
+    @Bean
+    public TransactionManager axonTransactionManager() {
+        return new SpringTransactionManager(transactionManager);
+    }
+
+    @Bean
+    public EventBus eventBus(){
+        return new SimpleEventBus();
+    }
+
+    @Bean
+    public CommandBus commandBus() {
+        SimpleCommandBus commandBus = new SimpleCommandBus(axonTransactionManager(), NoOpMessageMonitor.INSTANCE);
+        //commandBus.registerHandlerInterceptor(transactionManagingInterceptor());
+        return commandBus;
+    }
+
+    @Bean
+    public TransactionManagingInterceptor transactionManagingInterceptor(){
+        return new TransactionManagingInterceptor(new SpringTransactionManager(transactionManager));
+    }
+
+    @Bean
+  	public EntityManagerProvider entityManagerProvider() {
+  		return new ContainerManagedEntityManagerProvider();
+  	}
+
+	  @Bean
+    public Repository<BankAccount> accountRepository(){
+        return new GenericJpaRepository<BankAccount>(entityManagerProvider(),BankAccount.class, eventBus());
+    }
+}
+```
+
+현재 시점(Axon version 3.3 이상)에서는 @EnableAxon 이 depricated 되었고 "axon-spring-boot-autoconfigure"로 대체되었다.
+
+이렇게하면 자동으로 설정 모든이 Inject된다.
+위에서 Event Store를 InMemory에 (InMemoryEventStorageEngine) 저장하도록 설정하고, Aggregate의 상태정보는 MySQL에 저장한다.
+Axon는 Aggregate마다 AggregateReposiotyBean을 생성하다. 위 예제에서는 GenericJpaRepository로 BankAccout Aggregate의 상태정보를 저장한다.
+
+
+### 4. Aggregate에 JPA Entity annotations 추가
+
+위에서 정의한(JpaConfig) Repository를 Aggregate에 할당한다.
+
+JPA requires that the Entity must have an ID. GenericJpaRepositoryBy default, String is used as the type of the EntityId. This does not use the String directly. The
+java.lang.IllegalArgumentException: Provided id of the wrong type for class com.edi.learn.axon .aggregates.BankAccount. Expected: class com.edi.learn.axon.domain.AccountId, got class java.lang.String The
+solution is to add @Id, @Column to the getter method.
+
+
+
+```java
+@Aggregate(repository = "accountRepository")
+@Entity
+public class BankAccount {
+  @AggregateIdentifier
+  private AccountId accountId;
+
+  ......
+
+  @Id
+  public String getAccountId() {
+      return accountId.toString();
+  }
+
+  @Column
+  public String getAccountName() {
+      return accountName;
+  }
+
+  @Column
+  public BigDecimal getBalance() {
+      return balance;
+  }
+}
+
+```
+
+
+### 5. Rest Controller
+***변경 필요 ***
+***입력 출력 REST EndPoint 추가 ****
+
+
+``` java
+@RestController
+@RequestMapping("/bank")
+public class BankAccountController {
+
+    private  static  final logger LOGGER = getLogger (BankAccountController.class);
+
+    @Autowired
+    private CommandGateway commandGateway;
+
+    @Autowired
+    private HttpServletResponse response;
+
+    @RequestMapping(method = RequestMethod.POST)
+    public void create() {
+        LOGGER.info("start");
+        AccountId id = new AccountId();
+        LOGGER.debug("Account id: {}", id.toString());
+        commandGateway.send(new CreateAccountCommand(id, "MyAccount",1000));
+        commandGateway.send(new WithdrawMoneyCommand(id, 500));
+        commandGateway.send(new WithdrawMoneyCommand(id, 300));
+        commandGateway.send(new CreateAccountCommand(id, "MyAccount", 1000));
+        commandGateway.send(new WithdrawMoneyCommand(id, 500));
+    }
+}
+```
+
+### 6. StartUp class
+
+```java
+@SpringBootApplication
+@ComponentScan(basePackages = {"com.edi.learn"})
+public class Application {  
+    public static void main(String args[]){
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+### 7. Test
+PostMan등을 이용해서  http://localhost:8008/bank POST Request!
+
+
 
 ## Example 3
 세변째 예제에서는 JPA에 Aggregate의 상태 정보와 Event Store에 Domain Event를 저장하는 예시이다.

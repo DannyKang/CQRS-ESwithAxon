@@ -510,16 +510,16 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
 CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가지도록 한다. 이 예제에서는 Command-Side는 MongoDB를, Query는 MySQL을 이용하도록 한다.
 
 #### 시나리오
-백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오이다.
+>백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오이다.
 
-Product (id, name, stock, price)
+>Product (id, name, stock, price)
 
-상품 추가 프로세스
-CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent
+>상품 추가 프로세스
+>CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent
 
-여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용한다.
+>여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용한다.
 
-Order (id, username, payment, products)
+>Order (id, username, payment, products)
 주문 프로세스
 CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
 
@@ -623,7 +623,7 @@ public class OrderAggregate {
     }
 }
 ```
-
+여기서 CreateOrderCommand를 OrderAggregate에서 뺐는데(ProductAggregate와 다르게), order할때 product의 unit price를 알아야 하기 때문에, Product id를 가지고 query를 해서 order를 생성해야 하기 때문에, OrderHandler를 별도로 뺐다.
 
 ```java
 
@@ -658,3 +658,275 @@ public class OrderHandler {
 }
 
 ```
+org.axonframework.commandhandling.model.Repository<T> 에는 아래와 같이 3개의 메소드가 있는데, Delete와 Update가 없다.
+모든 Aggregate에 발생하는 변화를 저장하기 때문 Update와 Delete 모두 Event를 Append하고 Delete는 flag를 Invalid 표시한다.
+
+```java
+public interface Repository<T> {
+
+    /**
+     * Load the aggregate with the given unique identifier. No version checks are done when loading an aggregate,
+     * meaning that concurrent access will not be checked for.
+     *
+     * @param aggregateIdentifier The identifier of the aggregate to load
+     * @return The aggregate root with the given identifier.
+     * @throws AggregateNotFoundException if aggregate with given id cannot be found
+     */
+    Aggregate<T> load(String aggregateIdentifier);
+
+    /**
+     * Load the aggregate with the given unique identifier.
+     *
+     * @param aggregateIdentifier The identifier of the aggregate to load
+     * @param expectedVersion     The expected version of the loaded aggregate
+     * @return The aggregate root with the given identifier.
+     * @throws AggregateNotFoundException if aggregate with given id cannot be found
+     */
+    Aggregate<T> load(String aggregateIdentifier, Long expectedVersion);
+
+    /**
+     * Creates a new managed instance for the aggregate, using the given {@code factoryMethod}
+     * to instantiate the aggregate's root.
+     *
+     * @param factoryMethod The method to create the aggregate's root instance
+     * @return an Aggregate instance describing the aggregate's state
+     * @throws Exception when the factoryMethod throws an exception
+     */
+    Aggregate<T> newInstance(Callable<T> factoryMethod) throws Exception;
+}
+```
+
+
+
+### Command
+
+Web-based Rest Controller(spring-boot-starter-web)
+```java
+@RestController
+@RequestMapping("/product")
+public class ProductController {
+
+    private static final Logger LOGGER = getLogger(ProductController.class);
+
+    @Autowired
+    private CommandGateway commandGateway;
+
+    @RequestMapping(value = "/{id}", method = RequestMethod.POST)
+    public void create(@PathVariable(value = "id") String id,
+                       @RequestParam(value = "name", required = true) String name,
+                       @RequestParam(value = "price", required = true) long price,
+                       @RequestParam(value = "stock",required = true) int stock,
+                       HttpServletResponse response) {
+
+        LOGGER.debug("Adding Product [{}] '{}' {}x{}", id, name, price, stock);
+
+        try {
+            // multiply 100 on the price to avoid float number
+            CreateProductCommand command = new CreateProductCommand(id,name,price*100,stock);
+            commandGateway.sendAndWait(command);
+            response.setStatus(HttpServletResponse.SC_CREATED);// Set up the 201 CREATED response
+            return;
+        } catch (CommandExecutionException cex) {
+            LOGGER.warn("Add Command FAILED with Message: {}", cex.getMessage());
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            if (null != cex.getCause()) {
+                LOGGER.warn("Caused by: {} {}", cex.getCause().getClass().getName(), cex.getCause().getMessage());
+                if (cex.getCause() instanceof ConcurrencyException) {
+                    LOGGER.warn("A duplicate product with the same ID [{}] already exists.", id);
+                    response.setStatus(HttpServletResponse.SC_CONFLICT);
+                }
+            }
+        }
+    }
+}
+
+```
+
+commandGateway 에 4가지 메소드
+ - Send(command, CommandCallback) Send command, call CommandCallbackin the method onSuccessor onFailuremethod
+ - sendAndWait(command) sends the command, waits for the execution to complete and returns the result
+ - sendAndWait(command, timeout, TimeUnit) This is well understood and there is a timeout more than the above
+ - Send(command) This method returns one CompletableFuture, without waiting for the command to execute, return immediately. The result is obtained by future.
+
+
+### Repository
+
+디폴트 jpa 대신에 "axon-mongo"를 사용하기 때문에 Aggregate Repository를 추가해 줘야 한다.
+
+```java
+@Configuration
+public class ProductConfig {
+
+    @Autowired
+    private EventStore eventStore;
+
+    @Bean
+    @Scope("prototype")
+    public ProductAggregate productAggregate(){
+        return new ProductAggregate();
+    }
+
+    @Bean
+    public AggregateFactory<ProductAggregate> productAggregateAggregateFactory(){
+        SpringPrototypeAggregateFactory<ProductAggregate> aggregateFactory = new SpringPrototypeAggregateFactory<>();
+        aggregateFactory.setPrototypeBeanName("productAggregate");
+        return aggregateFactory;
+    }
+
+    @Bean
+    public Repository<ProductAggregate> productAggregateRepository(){
+        EventSourcingRepository<ProductAggregate> repository = new EventSourcingRepository<ProductAggregate>(
+                productAggregateAggregateFactory(),
+                eventStore
+        );
+        return repository;
+    }
+}
+
+```
+
+With the EventSourcingRepository, an AggregateFactory must be specified to reflect Aggregates, so we define the Aggregate prototype here and register it with the AggregateFactory.
+In this way, when the system starts, reading history events for ES restore, you can truly reproduce the state of Aggregate.
+
+### Configuration
+
+```
+# mongo
+mongodb.url=10.1.110.24
+mongodb.port=27017
+# mongodb.username=
+# mongodb.password=
+mongodb.dbname=axon
+mongodb.events.collection.name=events
+mongodb.events.snapshot.collection.name=snapshots
+
+```
+
+```java
+@Configuration
+public class CommandRepositoryConfiguration {
+
+    @Value("${mongodb.url}")
+    private String mongoUrl;
+
+    @Value("${mongodb.dbname}")
+    private String mongoDbName;
+
+    @Value("${mongodb.events.collection.name}")
+    private String eventsCollectionName;
+
+    @Value("${mongodb.events.snapshot.collection.name}")
+    private String snapshotCollectionName;
+
+    @Bean
+    public Serializer axonJsonSerializer() {
+        return new JacksonSerializer();
+    }
+
+    @Bean
+    public EventStorageEngine eventStorageEngine(){
+        return new MongoEventStorageEngine(
+                axonJsonSerializer(),null, axonMongoTemplate(), new DocumentPerEventStorageStrategy());
+    }
+
+    @Bean(name = "axonMongoTemplate")
+    public MongoTemplate axonMongoTemplate() {
+        MongoTemplate template = new DefaultMongoTemplate(mongoClient(), mongoDbName, eventsCollectionName, snapshotCollectionName);
+        return template;
+    }
+
+    @Bean
+    public MongoClient mongoClient(){
+        MongoFactory mongoFactory = new MongoFactory();
+        mongoFactory.setMongoAddresses(Arrays.asList(new ServerAddress(mongoUrl)));
+        return mongoFactory.createMongo();
+    }
+}
+
+```
+
+
+### Query Side
+Query Side는 특이할 점이 없다.
+
+```java
+@Entity
+public class ProductEntry {
+
+  @Id
+  private String id;
+  @Column
+  private String name;
+  @Column
+  private long price;
+  @Column
+  private int stock;
+
+  public ProductEntry() {
+  }
+
+  public ProductEntry(String id, String name, long price, int stock) {
+      this.id = id;
+      this.name = name;
+      this.price = price;
+      this.stock = stock;
+  }
+  // getter & setter
+  ......
+}
+
+@Entity
+public class OrderEntry {
+  @Id
+  private String id;
+  @Column
+  private String username;
+  @Column
+  private double payment;
+  @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+  @JoinColumn(name = "order_id")
+  @MapKey(name = "id")
+  private Map<String, OrderProductEntry> products;
+
+  public OrderEntry() {
+  }
+
+  public OrderEntry(String id, String username, Map<String, OrderProductEntry> products) {
+      this.id = id;
+      this.username = username;
+      this.payment = payment;
+      this.products = products;
+  }
+  // getter & setter
+  ......
+}
+
+@Entity
+public class OrderProductEntry {
+  @Id
+  @GeneratedValue
+  private Long jpaId;
+  private String id;
+  @Column
+  private String name;
+  @Column
+  private long price;
+  @Column
+  private int amount;
+
+  public OrderProductEntry() {
+  }
+
+  public OrderProductEntry(String id, String name, long price, int amount) {
+      this.id = id;
+      this.name = name;
+      this.price = price;
+      this.amount = amount;
+  }
+
+  // getter & setter
+  ......
+}
+```
+
+*** 조금 더 해야 한다. ***

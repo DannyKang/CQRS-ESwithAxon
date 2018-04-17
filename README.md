@@ -305,7 +305,7 @@ spring.jpa.hibernate.ddl-auto=create-drop
 
 Axon에서 JPA를 사용하기 위한 설정을 추가한다.
 
-```
+```java
 @Configuration
 @EnableAxon
 public class JpaConfig {
@@ -448,7 +448,213 @@ PostMan등을 이용해서  http://localhost:8008/bank POST Request!
 
 
 ## Example 3
-세변째 예제에서는 JPA에 Aggregate의 상태 정보와 Event Store에 Domain Event를 저장하는 예시이다.
+세변째 예제에서는 두번제 예제에 이어 Axon에서 제공하는 spring-boot-autoconfigure feature를 통한  자동 설정과 Event Store에 Domain Event를 저장하는 예시이다.
+
+
+ - spring-boot-autoconfigure
+ - JpaConfig Class 삭제
+ - BankAccout Entity 선언 삭제
+
+AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Serializer, EventStore등을 선언한다.
+
+```java
+@ConditionalOnBean (EntityManagerFactory.class)
+@RegisterDefaultEntities (packages = { "org.axonframework.eventsourcing.eventstore.jpa" , "org.axonframework.eventhandling.tokenstore" , "org.axonframework.eventhandling.saga.repository.jpa" }) @Configuration public static class JpaConfiguration {
+
+
+
+
+
+    @ConditionalOnMissingBean @Bean public EventStorageEngine eventStorageEngine (EntityManagerProvider entityManagerProvider,                                                  TransactionManager transactionManager) { return new JpaEventStorageEngine(entityManagerProvider, transactionManager);     }
+
+
+
+
+
+
+    @ConditionalOnMissingBean @Bean public EntityManagerProvider entityManagerProvider () { return new ContainerManagedEntityManagerProvider();     }
+
+
+
+
+
+    @ConditionalOnMissingBean @Bean public TokenStore tokenStore (Serializer serializer, EntityManagerProvider entityManagerProvider) { return new JpaTokenStore(entityManagerProvider, serializer);     }
+
+
+
+
+
+    @ConditionalOnMissingBean (SagaStore.class) @Bean public JpaSagaStore sagaStore (Serializer serializer, EntityManagerProvider entityManagerProvider) { return new JpaSagaStore(serializer, entityManagerProvider);     } }
+
+
+
+
+
+```
+위와 같이 자동 설정과 mysql-connector를 설정하고 실행하면, MySQL에 아래와 같은 테이블이 자동 생성되는 것을 볼수 있다.
+여기서 domain_event_entry에 모든 Aggregate의 상태변경을 야기하는 Event가 저장된다.
+
+ - pay_load
+ - pay_load_type은 java class에 따라 다르다????
+ - time stamp는 이벤트 발생 시간을 나타낸다.
+ - aggregate_identifier를 이용해서 aggregate를 추적한다.
+ - sequence_number 는 같은 aggregate의 발생 순서
+
+
 
 ## Example 4
-네번째 예제에서는 Command용 저장소와 Query용 저장소를 불리한 CQRS 예제를 다른다.
+앞의 세걔의 예제를 통해서 기본적인 Axon Framework의 구현 메커니즘을 이해했다면, 네번째 예제에서는 Command용 저장소와 Query용 저장소를 불리한 CQRS+ES 예제를 다른다.
+
+![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
+
+CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가지도록 한다. 이 예제에서는 Command-Side는 MongoDB를, Query는 MySQL을 이용하도록 한다.
+
+#### 시나리오
+백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오이다.
+
+Product (id, name, stock, price)
+
+상품 추가 프로세스
+CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent
+
+여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용한다.
+
+Order (id, username, payment, products)
+주문 프로세스
+CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
+
+### Command-Side
+
+#### Aggregate
+```java
+@Aggregate
+public class ProductAggregate {
+
+    private static final Logger LOGGER = getLogger(ProductAggregate.class);
+
+    @AggregateIdentifier
+    private String id;
+    private String name;
+    private int stock;
+    private long price;
+
+    public ProductAggregate() {
+    }
+
+    @CommandHandler
+    public ProductAggregate(CreateProductCommand command) {
+        apply(new ProductCreatedEvent(command.getId(),command.getName(),command.getPrice(),command.getStock()));
+    }
+
+    @EventHandler
+    public void on(ProductCreatedEvent event){
+        this.id = event.getId();
+        this.name = event.getName();
+        this.price = event.getPrice();
+        this.stock = event.getStock();
+        LOGGER.debug("Product [{}] {} {}x{} is created.", id,name,price,stock);
+    }
+
+    // getter and setter
+    ......
+}
+
+
+@Aggregate
+public class OrderAggregate {
+
+    @AggregateIdentifier
+    private OrderId id;
+    private String username;
+    private double payment;
+
+    @AggregateMember
+    private Map<String, OrderProduct> products;
+
+    public OrderAggregate(){}
+
+    public OrderAggregate(OrderId id, String username, Map<String, OrderProduct> products) {
+        apply(new OrderCreatedEvent(id, username, products));
+    }
+
+    public OrderId getId() {
+        return id;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public Map<String, OrderProduct> getProducts() {
+        return products;
+    }
+
+    @EventHandler
+    public void on(OrderCreatedEvent event){
+        this.id = event.getOrderId();
+        this.username = event.getUsername();
+        this.products = event.getProducts();
+        computePrice();
+    }
+
+    private void computePrice() {
+        products.forEach((id, product) -> {
+            payment += product.getPrice() * product.getAmount();
+        });
+    }
+
+    /**
+     * Divided 100 here because of the transformation of accuracy
+     *
+     * @return
+     */
+    public double getPayment() {
+        return payment/100;
+    }
+
+    public void addProduct(OrderProduct product){
+        this.products.put(product.getId(), product);
+        payment += product.getPrice() * product.getAmount();
+    }
+
+    public void removeProduct(String productId){
+        OrderProduct product = this.products.remove(productId);
+        payment = payment - product.getPrice() * product.getAmount();
+    }
+}
+```
+
+
+```java
+
+@Component
+public class OrderHandler {
+
+    private  static  final logger LOGGER = getLogger (OrderHandler.class);
+
+    @Autowired
+    private Repository<OrderAggregate> repository;
+
+    @Autowired
+    private Repository<ProductAggregate> productRepository;
+
+    @Autowired
+    private EventBus eventBus;
+
+    @CommandHandler
+    public void handle(CreateOrderCommand command) throws Exception {
+        Map<String, OrderProduct> products = new HashMap<>();
+        command.getProducts().forEach((productId,number)->{
+            LOGGER.debug("Loading product information with productId: {}",productId);
+            Aggregate<ProductAggregate> aggregate = productRepository.load(productId);
+            products.put(productId,
+                    new OrderProduct(productId,
+                            aggregate.invoke(productAggregate -> productAggregate.getName()),
+                            aggregate.invoke(productAggregate -> productAggregate.getPrice()),
+                            number));
+        });
+        repository.newInstance(() -> new OrderAggregate(command.getOrderId(), command.getUsername(), products));
+    }
+}
+
+```

@@ -22,6 +22,14 @@ Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상
  - EventBus
 
 
+![Axon Building Block](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
+
+
+![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
+
+![Event, Event Bus, EventHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-events.png)
+
+![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
 
 
 Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 된다.

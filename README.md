@@ -511,16 +511,12 @@ CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가�
 
 #### 시나리오
 >백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오이다.
-
 >Product (id, name, stock, price)
-
 >상품 추가 프로세스
 >CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent
-
 >여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용한다.
-
 >Order (id, username, payment, products)
-주문 프로세스
+>주문 프로세스  
 CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
 
 ### Command-Side
@@ -928,5 +924,78 @@ public class OrderProductEntry {
   ......
 }
 ```
+
+
+### 실습
+
+```
+//MySql image 다운로드
+docker pull mysql
+//mongodb image 다운로드
+docker pull mongo
+
+//MySql 컨테이너 기동
+docker run -p 3306:3306 --name mysql1 -e MYSQL_ROOT_PASSWORD=Welcome1 -d mysql
+//mongodb 컨테이너 기동
+docker run -p 27017:27017 --name mongodb -d mongo
+
+// MySql 데이터 베이스 생성 CQRS
+docker exec -it mysql1 bash
+$mysql -uroot -p
+Enter Password :
+mysql> create database cqrs; -- Create the new database
+mysql> grant all on cqrs.* to 'root'@'localhost';
+
+select host, user from mysql.user;
+
+// 별도의 shell에서 mongodb 컨테이너 접속
+docker exec -it mongodb bash
+```
+
+ 1. Product 생성
+ POST http://127.0.0.1:8080/product/1?name=SoccerBall&price=10&stock=100
+
+ 2. Order 생성
+ POST http://127.0.0.1:8080/order
+
+JSON
+{
+	"username":"Daniel",
+	"products":[{
+		"id":1,
+		"number":90
+	}]
+}
+
+```
+> use axon
+> show collections
+events
+snapshots
+system.indexes
+> db.events.find().pretty()
+{
+  "_id" : ObjectId("58dd181073bc0c0fb86d895e"),
+  "aggregateIdentifier" : "1",
+  "type" : "ProductAggregate",
+  "sequenceNumber" : NumberLong(0),
+  "serializedPayload" : "{\"id\":\"1\",\"name\":\"ttt\",\"price\":1000,\"stock\":100}",
+  "timestamp" : "2017-03-30T14:37:04.075Z",
+  "payloadType" : "com.edi.learn.axon.common.events.ProductCreatedEvent",
+  "payloadRevision" : null,
+  "serializedMetaData" : "{\"traceId\":\"4a298ed4-0d53-402a-ae6b-d79cc5e193bf\",\"correlationId\":\"4a298ed4-0d53-402a-ae6b-d79cc5e193bf\"}",
+  "eventIdentifier" : "500f3a8f-7c02-4e8e-bb9c-7b676224ce5c"
+}
+
+```
+
+MySql Query
+select * from cqrs.product_entry;
+
+
+GET http://localhost:8080/products
+GET http://localhost:8080/products/1
+
+
 
 *** 조금 더 해야 한다. ***

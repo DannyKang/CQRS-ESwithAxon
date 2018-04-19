@@ -1,22 +1,25 @@
 # CQRS-ESwithAxon
 
-본 Hans-On Lab에서는 Axon Framework를 활용해서 CQRS와 Event Sourcing에 대해서 실습한다.
+본 Hans-On Lab에서는 Axon Framework를 활용해서 CQRS와 Event Sourcing에 대해서 실습합니다.
 
 
 
 
 ## Axon Framework
-Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상태정보를 저장하는 방법과 EventSourcing을 지원한다.
+Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상태정보를 저장하는 방법과 EventSourcing을 지원합니다.
 
 
-### CQRS Architecture
+### Axon Framework Architecture
+![Axon Framework Architecture](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
 
-![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 
+## Axon Framework Building Block
 
-### Axon Framework Building Block
-
-![Axon Building Block](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
+ - Command, Command Handler
+ - Command Bus, Command Gateway
+ - Repository
+ - Event, Event Handler
+ - Event Bus
 
 ### Command/Write Side
 
@@ -24,23 +27,25 @@ Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상
 
 ![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
 
-Command는 시스템에 변경을 일으키는(CUD) 액션을 알리는 객체로, CommandHandler에 데이터를 전달하는 역할을 한다.
-Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Class 의도를 명확하게 나타내가 위해서 다음과 같은 명명규칙을 권고한다.
+Command는 시스템에 변경을 일으키는(CUD) 액션을 알리는 객체로, CommandHandler에 데이터를 전달하는 역할을 합니다.
+Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Command의 의도를 명확하게 나타내기 위해서 다음과 같은 명명규칙을 권고합니다.
  ex) CancelAppointmentCommand, AddItemCommand 등
 
 #### Command Bus
-Command Bus는 Command를 받아서 해당 Command Handler에 라우팅을 하는 역할을 하는 컴포넌트이다.
+Command Bus는 Command를 받아서 해당 Command Handler에 라우팅 역할을 하는 컴포넌트(Message Dispatching)입니다.
 
  - SimpleCommandBus
  - AsynchronousCommandBus : 비동기
  - DisruptorCommandBus : 분산환경
 
 #### Command Handler
-Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 한다.
+Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 합니다.
+하나의 Command는 하나의 Command Handler만 가질 수 있습니다.
+(반면 Event는 여러개의 Event Handlder를 가질 수 있습니다.)
 
-Command Handler 생성 방법
+**Command Handler 생성 방법**
  - CommandHandler 인터페이스 상속
- - Spring F/W를 사용하는 경우 @CommandHanlder 사용 (AnnotationCommandHandlerBeanPostProcessor)
+ - Spring F/W를 사용하는 경우 *@CommandHanlder* 사용 (AnnotationCommandHandlerBeanPostProcessor)
 
 ```java
  @Bean
@@ -50,21 +55,25 @@ Command Handler 생성 방법
 
     // This manually subscribes the command handler:
     // DebitAccountHandler to the commandbus
-    simpleCommandBus.subscribe(DebitAccount.class.getName(), 
+    simpleCommandBus.subscribe(DebitAccount.class.getName(),
                      new DebitAccountHandler());
         return simpleCommandBus;
   }
 ```
 
 #### Command Gateway
-Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문이다.
+Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문입니다.
 
 
 #### Repository
 
 ![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
 
-Aggregate의 상태변화를 저장한다.
+Aggregate의 상태변화를 저장합니다.
+
+ - GenericJpaRepository
+ JPA를 구현하기 위해서는 EntityManager를 직접 구현해야 한다.
+
 
 
 
@@ -74,45 +83,55 @@ Aggregate의 상태변화를 저장한다.
 
 
 
+#### Event
+Command/Write 에서, Domain Model/Aggregate에 상태를 변경했다면, 이 상태변화(Domain Event)를 전파하는 역할을 하는것이 Event입니다.  
+Command Handler는 변경사항(Domain Event)를 만들어서 Event Bus를 통해서 Event Handler에 Event를 전달합니다.  
+따라서 Event는 과거에 일어난 사건을 기술하는 것으로 주로 과거형을 사용합니다.
 
-![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
+ ex) AccountAddedEvent, ItemDeletedEvent 등
 
-![Event, Event Bus, EventHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-events.png)
+#### Event Handler
+전달된 Event를 이용하여 Query 전용 (Material View) Storage에 데이터를 생성합니다.
+Command-Commandler 쌍이 오직 하나만 있어야 하는데 반해서, 하나의 Event에 대해서, 여러개의 Event Handler가 있을 수 있습니다.
 
 
 
-Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 된다.
+
+
+
+
+Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 됩니다.
 ```
 <dependency>
   <groupId>org.axonframework</groupId>
   <artifactId>axon-core</artifactId>
   <version>${axon.version}</version>
 </dependency>
-
+<dependency>
+    <groupId>org.axonframework</groupId>
+    <artifactId>axon-spring</artifactId>
+    <version>${axon.version}</version>
+</dependency>
+<dependency>
+    <groupId>org.axonframework</groupId>
+    <artifactId>axon-spring-boot-autoconfigure</artifactId>
+    <version>${axon.version}</version>
+</dependency>
+.....
 ```
 
 
- - core Axon's core code
- - amqp Use the MQ of the AMQP protocol, such as rabbit, to implement the distribution of events across JVMs
- - distributed-commandbus-jgroups Use Jgroup to implement Command distribution across JVM
- - distributed-commandbus-springcloud Integration with Spring Cloud, Command Discovery across JVM using DiscoveryClient and RESTemplate metrics Provide monitoring related information
- - mongo Axon and mongoDB integration
- - spring-boot-autoconfigure To implement Spring's autoconfigure support, you only need to provide related properties to automatically configure Axon
- - spring-boot-starter-jgroups Use distributed-commandbus-jgroups with spring autoconfigure to provide jgroup "one-click" integration
- - spring-boot-starter Integrate with springboot
- - spring Provide various annotations, integrated with spring
-
-
 ## Example 1
-첫번째 예제애서는 은행 계좌에 예금을 입출금하는 예제를 이용하여 Axon Framework의 기본적인 작동 원리를 이해한다.
+첫번째 예제애서는 은행 계좌에 예금을 입출금하는 예제를 이용하여 Axon Framework의 기본적인 작동 원리를 이해합니다.
 
 
 ### Scenairio
- 계죄를 개설하고, 입금, 출금을 한다.
+ 은행 계죄를 개설하고, 입/출금(Command)을 생성합니다.
+
 
 ### Aggregate
- Collection of Entity (Entity 집합체)  
- DDD에서 약간 내용 추가 필요
+ Collection of Objects (Entity 집합체)  
+ **DDD에서 약간 내용 추가 필요**
 
 
 #### BankAccount 클래스
@@ -127,11 +146,11 @@ Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 된
  }
 
 ```
- @Aggregate을 이용해서 Aggregate Class를 선언할 수 있는데, 각각의 Aggregate은 식별자인 GUID를 가져야 하며, @AggregateIdentifier로 구분한다.   
+ @Aggregate을 이용해서 Aggregate Class를 선언할 수 있으며, 각각의 Aggregate을 구분하기 위한 식별자(GUID)를 가지며, @AggregateIdentifier 로 선언합니다.
 
-AggregateIdentifier는
- - 비교를 위해서 equal 과 hashCode 메소드를 구현하며  
- - Serializable 인터페이스를 상속한다.
+AggregateIdentifier는 비교를 위해서
+ - equal 과 hashCode 메소드를 구현하며  
+ - Serializable 인터페이스를 상속합니다.
 
 
 ``` java
@@ -180,8 +199,8 @@ public class AccountId implements Serializable {
 ```
 #### Command
 
-CQRS에서 모든 Write(CUD)는 Command Class에서 처리한다. Axon에서는 모든 Command는 POJO를 구성한다.
-Axon은 Event-Driven Architecture를 기반으로 만들어져 있기 때문에, 내부적으로는 "CommandMessage"로 encapsulation된다.
+CQRS에서 모든 Write(CUD)는 Command Class에서 처리하며, Axon에서는 모든 Command는 POJO를 구성합니다.   
+Axon은 내부적으로 Event-Driven Architecture(Message)를 기반으로 만들어져 있기 때문에, 내부적으로는 "CommandMessage"로 encapsulation된다.
 
 
 ```java
@@ -213,8 +232,9 @@ public class WithdrawMoneyCommand {
 ```
 
 #### Event
-Event는 시스템의 변화를 발생할때 생성되는 Event Classs이며, 기본적으로 Aggregate에 변경이 가해질때 발생하며, Command와 마찬가지고 POJO이다.
-Event는 EventMessage로 encapsulation된다.
+Event는 시스템의 변화를 발생할때 생성되는 Event Class이며, 기본적으로 Aggregate에 변경이 가해질때 발생하며, Command와 마찬가지고 POJO입니다.
+Event는 EventMessage로 encapsulation됩니다.
+
 ```java
 public class AccountCreatedEvent {
     private AccountId accountId;
@@ -244,8 +264,8 @@ public class MoneyWithdrawnEvent {
 ```
 
 #### CommandHandler
-Axon에서는 Command Handler를 지정하기 위해서 @CommandHandler를 사용한다.
-아래와 같이 설정하면, Command가 발생할때 Command-CommandHanlder쌍(key-value)으로 작동한다.
+Axon에서는 Command Handler를 지정하기 위해서 @CommandHandler를 사용합니다.
+아래와 같이 설정하면, Command가 발생할때 Command-CommandHanlder쌍(key-value)으로 작동합니다.
 
 ```java
 @CommandHandler
@@ -259,11 +279,12 @@ public void handle(WithdrawMoneyCommand command){
 }
 
 ```
-위의 예제는 단순이 Event를 생성하고, static method인 apply를 호출해서 event를 발생시킨다.
+위의 예제는 단순히 Event를 생성하고, static method인 apply를 호출해서 event를 발생시킨다.
+**Axon은 apply Method를 발생시키면 내부적으로 Event Store에 해당 이벤트를 저장하고, EventBus를 통해서 Event를 Publish합니다.**
 
 
 #### EventHandler
-@EventHanldere는 event 처리기 역할를 하는 메소드를 지정한다.
+@EventHanldere는 event 처리기 역할를 하는 메소드를 지정합니다.
 
 ```java
 
@@ -288,6 +309,7 @@ public void on(MoneyWithdrawnEvent event){
 
 ```
 
+#### Application Config
 
 ```java
 public class Application {

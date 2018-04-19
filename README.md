@@ -9,27 +9,76 @@
 Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상태정보를 저장하는 방법과 EventSourcing을 지원한다.
 
 
-### Axon Framework Architecture
+### CQRS Architecture
 
 ![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 
 
 ### Axon Framework Building Block
-예기에 각 Building Block 설명 추가
- - Command
- - CommandBus
- - Event
- - EventBus
-
 
 ![Axon Building Block](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
+
+### Command/Write Side
+
+#### Command
+
+![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
+
+Command는 시스템에 변경을 일으키는(CUD) 액션을 알리는 객체로, CommandHandler에 데이터를 전달하는 역할을 한다.
+Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Class 의도를 명확하게 나타내가 위해서 다음과 같은 명명규칙을 권고한다.
+ ex) CancelAppointmentCommand, AddItemCommand 등
+
+#### Command Bus
+Command Bus는 Command를 받아서 해당 Command Handler에 라우팅을 하는 역할을 하는 컴포넌트이다.
+
+ - SimpleCommandBus
+ - AsynchronousCommandBus : 비동기
+ - DisruptorCommandBus : 분산환경
+
+#### Command Handler
+Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 한다.
+
+Command Handler 생성 방법
+ - CommandHandler 인터페이스 상속
+ - Spring F/W를 사용하는 경우 @CommandHanlder 사용 (AnnotationCommandHandlerBeanPostProcessor)
+
+```java
+ @Bean
+  public SimpleCommandBus commandBus() {
+    SimpleCommandBus simpleCommandBus =
+                     new SimpleCommandBus();
+
+    // This manually subscribes the command handler:
+    // DebitAccountHandler to the commandbus
+    simpleCommandBus.subscribe(DebitAccount.class.getName(), 
+                     new DebitAccountHandler());
+        return simpleCommandBus;
+  }
+```
+
+#### Command Gateway
+Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문이다.
+
+
+#### Repository
+
+![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
+
+Aggregate의 상태변화를 저장한다.
+
+
+
+### Query/Read Side
+
+![Event, Event Bus, EventHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-events.png)
+
+
 
 
 ![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
 
 ![Event, Event Bus, EventHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-events.png)
 
-![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
 
 
 Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 된다.
@@ -511,7 +560,7 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
 
 
 ## Example 4
-앞의 세걔의 예제를 통해서 기본적인 Axon Framework의 구현 메커니즘을 이해했다면, 네번째 예제에서는 Command용 저장소와 Query용 저장소를 불리한 CQRS+ES 예제를 다른다.
+앞의 세개의 예제를 통해서 기본적인 Axon Framework의 구현 메커니즘을 이해했다면, 네번째 예제에서는 Command용 저장소와 Query용 저장소를 불리한 CQRS+ES 예제를 다른다.
 
 ![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 

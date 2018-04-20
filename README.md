@@ -654,13 +654,10 @@ CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가�
 
 #### 시나리오
 >백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오입니다.
-> *Product (id, name, stock, price)*    
+> *Product (id, name, stock, price)*,  *Order (id, username, payment, products)*    
 >상품 추가 프로세스  
 >CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent  
 >
->
-여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용합니다.  
->*Order (id, username, payment, products)    *
 >주문 프로세스    
 >CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
 
@@ -884,10 +881,10 @@ public class ProductController {
 ```
 
 commandGateway 에 4가지 메소드
- - Send(command, CommandCallback) Send command, call CommandCallbackin the method onSuccessor onFailuremethod
- - sendAndWait(command) sends the command, waits for the execution to complete and returns the result
- - sendAndWait(command, timeout, TimeUnit) This is well understood and there is a timeout more than the above
- - Send(command) This method returns one CompletableFuture, without waiting for the command to execute, return immediately. The result is obtained by future.
+ - Send(command, CommandCallback) : Send command, call CommandCallbackin the method on Successor on Failure Method
+ - sendAndWait(command) : sends the command, waits for the execution to complete and returns the result
+ - sendAndWait(command, timeout, TimeUnit) :  This is well understood and there is a timeout more than the above
+ - Send(command) :This method returns one CompletableFuture, without waiting for the command to execute, return immediately. The result is obtained by future.
 
 
 ### Repository
@@ -925,9 +922,8 @@ public class ProductConfig {
 }
 
 ```
-
-With the EventSourcingRepository, an AggregateFactory must be specified to reflect Aggregates, so we define the Aggregate prototype here and register it with the AggregateFactory.
-In this way, when the system starts, reading history events for ES restore, you can truly reproduce the state of Aggregate.
+EventSourcingRepository을 이용해서 각각의 Aggregate(ProductAggregate, OrderAggregate)에 대한 AggregateFactory를 설정해 준다.
+이렇게 하면 Event Store에서 Event History를 읽어와서 Aggregate의 현재 상태를 생산(reproduce)한다.  
 
 ### Configuration
 
@@ -988,7 +984,7 @@ public class CommandRepositoryConfiguration {
 
 
 ### Query Side
-Query Side는 특이할 점이 없다.
+Query Side는 Command Side 에서 발생시킨 Event를 수신해서 조회용(Aggregate의 최종 상태값)을 JPA를 이용해서 저장한다.   
 
 ```java
 @Entity
@@ -1070,6 +1066,35 @@ public class OrderProductEntry {
 }
 ```
 
+```java
+// Query Event Handler
+
+@Component
+public class OrderEventHandler {
+
+    private static final Logger LOGGER = getLogger(OrderEventHandler.class);
+
+    @Autowired
+    private OrderEntryRepository repository;
+
+    @EventHandler
+    public void on(OrderCreatedEvent event){
+        Map<String, OrderProductEntry> map = new HashMap<>();
+        event.getProducts().forEach((id, product)->{
+            map.put(id,
+                    new OrderProductEntry(
+                            product.getId(),
+                            product.getName(),
+                            product.getPrice(),
+                            product.getAmount()));
+        });
+        OrderEntry order = new OrderEntry(event.getOrderId().toString(), event.getUsername(), map);
+        repository.save(order);
+    }
+
+}
+```
+
 
 ### Hands-On
 ***MySQL Database 추가 생성 "ProductOrder"***
@@ -1088,6 +1113,8 @@ docker run -p 27017:27017 --name mongodb -d mongo
 docker exec -it mysql1 bash
 $mysql -uroot -p
 Enter Password : Welcome1
+
+//Example 4를 위한 별도의 DB 생성
 mysql> create database productorder; -- Create the new database
 mysql> grant all on productorder.* to 'root'@'localhost';
 

@@ -14,10 +14,6 @@ import java.util.Map;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
-/**
- * This event handler is used to update the repository data of the query side in the CQRS.
- * Created by Edison Xu on 2017/3/15.
- */
 @Component
 public class OrderEventHandler {
 

@@ -3,41 +3,20 @@
 본 Hans-On Lab에서는 Axon Framework를 활용해서 CQRS와 Event Sourcing에 대해서 실습합니다.
 
 
-# Pre-Requisite
-
- - git 설치 : https://git-scm.com/book/ko/v1/시작하기-Git-설치
- - docker : https://docs.docker.com/install/
- - JDK1.8 : http://www.oracle.com/technetwork/java/javase/downloads/index.html
- - maven : http://maven.apache.org/download.cgi
- - Java IDE(Eclipse, IntelliJ등 )
-
-,,,
-//Source Code 다운로드
-git clone https://github.com/DannyKang/CQRS-ESwithAxon
-
-//MySql image 다운로드
-docker pull mysql
-
-//mongodb image 다운로드
-docker pull mongo
-,,,
 
 
 ## Axon Framework
-Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상태정보를 저장하는 방법과 EventSourcing을 지원합니다.
+Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상태정보를 저장하는 방법과 EventSourcing을 지원한다.
 
 
-### Axon Framework Architecture
-![Axon Framework Architecture](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
+### CQRS Architecture
+
+![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 
 
-## Axon Framework Building Block
+### Axon Framework Building Block
 
- - Command, Command Handler
- - Command Bus, Command Gateway
- - Repository
- - Event, Event Handler
- - Event Bus
+![Axon Building Block](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
 
 ### Command/Write Side
 
@@ -45,25 +24,23 @@ Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상
 
 ![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
 
-Command는 시스템에 변경을 일으키는(CUD) 액션을 알리는 객체로, CommandHandler에 데이터를 전달하는 역할을 합니다.
-Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Command의 의도를 명확하게 나타내기 위해서 다음과 같은 명명규칙을 권고합니다.
+Command는 시스템에 변경을 일으키는(CUD) 액션을 알리는 객체로, CommandHandler에 데이터를 전달하는 역할을 한다.
+Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Class 의도를 명확하게 나타내가 위해서 다음과 같은 명명규칙을 권고한다.
  ex) CancelAppointmentCommand, AddItemCommand 등
 
 #### Command Bus
-Command Bus는 Command를 받아서 해당 Command Handler에 라우팅 역할을 하는 컴포넌트(Message Dispatching)입니다.
+Command Bus는 Command를 받아서 해당 Command Handler에 라우팅을 하는 역할을 하는 컴포넌트이다.
 
  - SimpleCommandBus
  - AsynchronousCommandBus : 비동기
  - DisruptorCommandBus : 분산환경
 
 #### Command Handler
-Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 합니다.
-하나의 Command는 하나의 Command Handler만 가질 수 있습니다.
-(반면 Event는 여러개의 Event Handlder를 가질 수 있습니다.)
+Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 한다.
 
-**Command Handler 생성 방법**
+Command Handler 생성 방법
  - CommandHandler 인터페이스 상속
- - Spring F/W를 사용하는 경우 *@CommandHanlder* 사용 (AnnotationCommandHandlerBeanPostProcessor)
+ - Spring F/W를 사용하는 경우 @CommandHanlder 사용 (AnnotationCommandHandlerBeanPostProcessor)
 
 ```java
  @Bean
@@ -80,18 +57,14 @@ Command Handler는 command를 받아서 Action를 처리하는 처리기 역할�
 ```
 
 #### Command Gateway
-Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문입니다.
+Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문이다.
 
 
 #### Repository
 
 ![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
 
-Aggregate의 상태변화를 저장합니다.
-
- - GenericJpaRepository
- JPA를 구현하기 위해서는 EntityManager를 직접 구현해야 한다.
-
+Aggregate의 상태변화를 저장한다.
 
 
 
@@ -101,55 +74,45 @@ Aggregate의 상태변화를 저장합니다.
 
 
 
-#### Event
-Command/Write 에서, Domain Model/Aggregate에 상태를 변경했다면, 이 상태변화(Domain Event)를 전파하는 역할을 하는것이 Event입니다.  
-Command Handler는 변경사항(Domain Event)를 만들어서 Event Bus를 통해서 Event Handler에 Event를 전달합니다.  
-따라서 Event는 과거에 일어난 사건을 기술하는 것으로 주로 과거형을 사용합니다.
 
- ex) AccountAddedEvent, ItemDeletedEvent 등
+![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
 
-#### Event Handler
-전달된 Event를 이용하여 Query 전용 (Material View) Storage에 데이터를 생성합니다.
-Command-Commandler 쌍이 오직 하나만 있어야 하는데 반해서, 하나의 Event에 대해서, 여러개의 Event Handler가 있을 수 있습니다.
+![Event, Event Bus, EventHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-events.png)
 
 
 
-
-
-
-
-Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 됩니다.
+Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 된다.
 ```
 <dependency>
   <groupId>org.axonframework</groupId>
   <artifactId>axon-core</artifactId>
   <version>${axon.version}</version>
 </dependency>
-<dependency>
-    <groupId>org.axonframework</groupId>
-    <artifactId>axon-spring</artifactId>
-    <version>${axon.version}</version>
-</dependency>
-<dependency>
-    <groupId>org.axonframework</groupId>
-    <artifactId>axon-spring-boot-autoconfigure</artifactId>
-    <version>${axon.version}</version>
-</dependency>
-.....
+
 ```
 
 
+ - core Axon's core code
+ - amqp Use the MQ of the AMQP protocol, such as rabbit, to implement the distribution of events across JVMs
+ - distributed-commandbus-jgroups Use Jgroup to implement Command distribution across JVM
+ - distributed-commandbus-springcloud Integration with Spring Cloud, Command Discovery across JVM using DiscoveryClient and RESTemplate metrics Provide monitoring related information
+ - mongo Axon and mongoDB integration
+ - spring-boot-autoconfigure To implement Spring's autoconfigure support, you only need to provide related properties to automatically configure Axon
+ - spring-boot-starter-jgroups Use distributed-commandbus-jgroups with spring autoconfigure to provide jgroup "one-click" integration
+ - spring-boot-starter Integrate with springboot
+ - spring Provide various annotations, integrated with spring
+
+
 ## Example 1
-첫번째 예제애서는 은행 계좌에 예금을 입출금하는 예제를 이용하여 Axon Framework의 기본적인 작동 원리를 이해합니다.
+첫번째 예제애서는 은행 계좌에 예금을 입출금하는 예제를 이용하여 Axon Framework의 기본적인 작동 원리를 이해한다.
 
 
 ### Scenairio
- 은행 계죄를 개설하고, 입/출금(Command)을 생성합니다.
-
+ 계죄를 개설하고, 입금, 출금을 한다.
 
 ### Aggregate
- Collection of Objects (Entity 집합체)  
- **DDD에서 약간 내용 추가 필요**
+ Collection of Entity (Entity 집합체)
+ DDD에서 약간 내용 추가 필요
 
 
 #### BankAccount 클래스
@@ -164,11 +127,11 @@ Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 됩
  }
 
 ```
- @Aggregate을 이용해서 Aggregate Class를 선언할 수 있으며, 각각의 Aggregate을 구분하기 위한 식별자(GUID)를 가지며, @AggregateIdentifier 로 선언합니다.
+ @Aggregate을 이용해서 Aggregate Class를 선언할 수 있는데, 각각의 Aggregate은 식별자인 GUID를 가져야 하며, @AggregateIdentifier로 구분한다.
 
-AggregateIdentifier는 비교를 위해서
- - equal 과 hashCode 메소드를 구현하며  
- - Serializable 인터페이스를 상속합니다.
+AggregateIdentifier는
+ - 비교를 위해서 equal 과 hashCode 메소드를 구현하며
+ - Serializable 인터페이스를 상속한다.
 
 
 ``` java
@@ -217,8 +180,8 @@ public class AccountId implements Serializable {
 ```
 #### Command
 
-CQRS에서 모든 Write(CUD)는 Command Class에서 처리하며, Axon에서는 모든 Command는 POJO를 구성합니다.   
-Axon은 내부적으로 Event-Driven Architecture(Message)를 기반으로 만들어져 있기 때문에, 내부적으로는 "CommandMessage"로 encapsulation된다.
+CQRS에서 모든 Write(CUD)는 Command Class에서 처리한다. Axon에서는 모든 Command는 POJO를 구성한다.
+Axon은 Event-Driven Architecture를 기반으로 만들어져 있기 때문에, 내부적으로는 "CommandMessage"로 encapsulation된다.
 
 
 ```java
@@ -250,9 +213,8 @@ public class WithdrawMoneyCommand {
 ```
 
 #### Event
-Event는 시스템의 변화를 발생할때 생성되는 Event Class이며, 기본적으로 Aggregate에 변경이 가해질때 발생하며, Command와 마찬가지고 POJO입니다.
-Event는 EventMessage로 encapsulation됩니다.
-
+Event는 시스템의 변화를 발생할때 생성되는 Event Classs이며, 기본적으로 Aggregate에 변경이 가해질때 발생하며, Command와 마찬가지고 POJO이다.
+Event는 EventMessage로 encapsulation된다.
 ```java
 public class AccountCreatedEvent {
     private AccountId accountId;
@@ -282,8 +244,8 @@ public class MoneyWithdrawnEvent {
 ```
 
 #### CommandHandler
-Axon에서는 Command Handler를 지정하기 위해서 @CommandHandler를 사용합니다.  
-아래와 같이 설정하면, Command가 발생할때 Command-CommandHanlder쌍(key-value)으로 작동합니다.
+Axon에서는 Command Handler를 지정하기 위해서 @CommandHandler를 사용한다.
+아래와 같이 설정하면, Command가 발생할때 Command-CommandHanlder쌍(key-value)으로 작동한다.
 
 ```java
 @CommandHandler
@@ -297,12 +259,11 @@ public void handle(WithdrawMoneyCommand command){
 }
 
 ```
-위의 예제는 단순히 Event를 생성하고, static method인 apply를 호출해서 event를 발생시킨다.  
-**Axon은 apply Method를 발생시키면 내부적으로 Event Store에 해당 이벤트를 저장하고, EventBus를 통해서 Event를 Publish합니다.**
+위의 예제는 단순이 Event를 생성하고, static method인 apply를 호출해서 event를 발생시킨다.
 
 
 #### EventHandler
-@EventHanldere는 event 처리기 역할를 하는 메소드를 지정합니다.
+@EventHanldere는 event 처리기 역할를 하는 메소드를 지정한다.
 
 ```java
 
@@ -327,7 +288,6 @@ public void on(MoneyWithdrawnEvent event){
 
 ```
 
-#### Application Config
 
 ```java
 public class Application {
@@ -347,12 +307,9 @@ public class Application {
 ```
 
 
-***Quiz***
-
-
 ## Example 2
-두번째 예제에서는 JPA를 이용해서 Aggregate의 상태 정보를 저장하는 예제를 구현합니다.
-JPA를 구현하기 위해서 Transaction Manager를 설정하는 코드가 추가되어야 합니다.
+두번째 예제에서는 JPA를 이용해서 Aggregate의 상태 정보를 저장하는 예제를 구현한다.
+JPA를 구현학 위해서 Transaction Manager를 설정하는 코드가 추가된다.
 
 ### 1. Update Maven dependency
  - Springboot 사용
@@ -454,18 +411,20 @@ public class JpaConfig {
 }
 ```
 
-현재 시점(Axon version 3.3 이상)에서는 @EnableAxon 이 depricated 되었고 "axon-spring-boot-autoconfigure"로 대체되었습니다.
+현재 시점(Axon version 3.3 이상)에서는 @EnableAxon 이 depricated 되었고 "axon-spring-boot-autoconfigure"로 대체되었다.
 
-이렇게하면 자동으로 설정하면 모든 Bean이 주입(inject)됩니다.   
-위에서는 Event Store를 InMemory에 (InMemoryEventStorageEngine) 저장하도록 설정하고, Aggregate의 상태정보는 MySQL에 저장합니다.
-Axon는 Aggregate마다 AggregateReposiotyBean을 생성하다.  
-위 예제에서는 GenericJpaRepository로 BankAccout Aggregate의 상태정보를 저장합니다.
+이렇게하면 자동으로 설정 모든이 Inject된다.
+위에서 Event Store를 InMemory에 (InMemoryEventStorageEngine) 저장하도록 설정하고, Aggregate의 상태정보는 MySQL에 저장한다.
+Axon는 Aggregate마다 AggregateReposiotyBean을 생성하다. 위 예제에서는 GenericJpaRepository로 BankAccout Aggregate의 상태정보를 저장한다.
 
 
 ### 4. Aggregate에 JPA Entity annotations 추가
 
-위에서 정의한(JpaConfig) Repository를 Aggregate에 할당합니다.
+위에서 정의한(JpaConfig) Repository를 Aggregate에 할당한다.
 
+JPA requires that the Entity must have an ID. GenericJpaRepositoryBy default, String is used as the type of the EntityId. This does not use the String directly. The
+java.lang.IllegalArgumentException: Provided id of the wrong type for class com.edi.learn.axon .aggregates.BankAccount. Expected: class com.edi.learn.axon.domain.AccountId, got class java.lang.String The
+solution is to add @Id, @Column to the getter method.
 
 
 
@@ -534,65 +493,24 @@ public class BankAccountController {
 ```java
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.edi.learn"})
-public class Application {  
+public class Application {
     public static void main(String args[]){
         SpringApplication.run(Application.class, args);
     }
 }
 ```
-### Hands-On
- 1. mysql 실행
-
- ***MySQL Docker Image***
- ```
- //MySql image 다운로드
- docker pull mysql
-
- //MySql 컨테이너 기동
- docker run -p 3306:3306 --name mysql1 -e MYSQL_ROOT_PASSWORD=Welcome1 -d mysql
-
- // MySql 데이터 베이스 생성 CQRS
- docker exec -it mysql1 bash
- $mysql -uroot -p
- Enter Password : Welcome1
- mysql> create database cqrs; -- Create the new database
- mysql> grant all on cqrs.* to 'root'@'localhost';
-
- // Query
- mysql>use cqrs;
- mysql> select * from bank_account;
-
- ```
-
- 2. App 실행
- 3. POST http://localhost:8008/bank
-   PostMan등을 이용해서  http://localhost:8008/bank POST Request!
-```
-curl -X POST http://localhost:8008/bank
-```
-
+### 7. Test
+PostMan등을 이용해서  http://localhost:8008/bank POST Request!
 
 
 
 ## Example 3
-세변째 예제는 두번제 예제에 Aggregate의 상태정보와 Domain Event를 Event Store에 저장하는 예시 입니다.  
-이어 Axon에서 제공하는 axon-spring-boot-autoconfigure 기능을 이용해서 자동으로 Domain Event가 MySql로 설정된 Event Store 저장되는 예제를 돌립니다.
+세변째 예제에서는 두번제 예제에 이어 Axon에서 제공하는 spring-boot-autoconfigure feature를 통한  자동 설정과 Event Store에 Domain Event를 저장하는 예시이다.
 
- - axon-spring-boot-autoconfigure
+
+ - spring-boot-autoconfigure
  - JpaConfig Class 삭제
  - BankAccout Entity 선언 삭제
-
-```
-//pom.xml
-<dependency>
-    <groupId>org.axonframework</groupId>
-    <artifactId>axon-spring-boot-autoconfigure</artifactId>
-</dependency>
-<dependency>
-    <groupId>mysql</groupId>
-    <artifactId>mysql-connector-java</artifactId>
-</dependency>
-```
 
 AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Serializer, EventStore등을 선언한다.
 
@@ -601,64 +519,62 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
 @RegisterDefaultEntities (packages = { "org.axonframework.eventsourcing.eventstore.jpa" , "org.axonframework.eventhandling.tokenstore" , "org.axonframework.eventhandling.saga.repository.jpa" }) @Configuration public static class JpaConfiguration {
 
 
+
+
+
     @ConditionalOnMissingBean @Bean public EventStorageEngine eventStorageEngine (EntityManagerProvider entityManagerProvider,                                                  TransactionManager transactionManager) { return new JpaEventStorageEngine(entityManagerProvider, transactionManager);     }
+
+
+
+
 
 
     @ConditionalOnMissingBean @Bean public EntityManagerProvider entityManagerProvider () { return new ContainerManagedEntityManagerProvider();     }
 
 
+
+
+
     @ConditionalOnMissingBean @Bean public TokenStore tokenStore (Serializer serializer, EntityManagerProvider entityManagerProvider) { return new JpaTokenStore(entityManagerProvider, serializer);     }
 
+
+
+
+
     @ConditionalOnMissingBean (SagaStore.class) @Bean public JpaSagaStore sagaStore (Serializer serializer, EntityManagerProvider entityManagerProvider) { return new JpaSagaStore(serializer, entityManagerProvider);     } }
+
+
+
+
 
 ```
 위와 같이 자동 설정과 mysql-connector를 설정하고 실행하면, MySQL에 아래와 같은 테이블이 자동 생성되는 것을 볼수 있다.
 여기서 domain_event_entry에 모든 Aggregate의 상태변경을 야기하는 Event가 저장된다.
 
-![Event Store](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/domain_event_entry.png)
-
  - pay_load
- - pay_load_type
- - time stamp
- - aggregate_identifier
- - sequence_number
-
-
- ### Hands-on
-  1. mysql 실행
-  2. App 실행
-  3. POST http://localhost:8008/bank
-
-```
- curl -X POST http://localhost:8008/bank
-```
-
-```
- // Query
- mysql>use cqrs;
- mysql>select * from domain_event_entry;
-
-```
-
+ - pay_load_type은 java class에 따라 다르다????
+ - time stamp는 이벤트 발생 시간을 나타낸다.
+ - aggregate_identifier를 이용해서 aggregate를 추적한다.
+ - sequence_number 는 같은 aggregate의 발생 순서
 
 
 
 ## Example 4
-앞의 세개의 예제를 통해서 기본적인 Axon Framework의 구현 메커니즘을 이해했다면, 네번째 예제에서는 Command용 저장소와 Query용 저장소를 불리한 CQRS+ES 예제를 다릅니다.
+앞의 세개의 예제를 통해서 기본적인 Axon Framework의 구현 메커니즘을 이해했다면, 네번째 예제에서는 Command용 저장소와 Query용 저장소를 불리한 CQRS+ES 예제를 다른다.
 
 ![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 
-CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가지도록 한다. 이 예제에서는 Command-Side는 MongoDB를, Query는 MySQL을 이용하도록 합니다.
+CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가지도록 한다. 이 예제에서는 Command-Side는 MongoDB를, Query는 MySQL을 이용하도록 한다.
 
 #### 시나리오
->백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오입니다.
->Product (id, name, stock, price)    
->상품 추가 프로세스  
->CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent  
->여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용합니다.  
->Order (id, username, payment, products)    
->주문 프로세스    
->CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
+>백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오이다.
+>Product (id, name, stock, price)
+>상품 추가 프로세스
+>CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent
+>여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용한다.
+>Order (id, username, payment, products)
+>주문 프로세스
+CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
 
 ### Command-Side
 
@@ -1067,8 +983,8 @@ public class OrderProductEntry {
 ```
 
 
-### Hands-On
-***MySQL Database 추가 생성 "ProductOrder"***
+### 실습
+
 ```
 //MySql image 다운로드
 docker pull mysql
@@ -1080,12 +996,12 @@ docker run -p 3306:3306 --name mysql1 -e MYSQL_ROOT_PASSWORD=Welcome1 -d mysql
 //mongodb 컨테이너 기동
 docker run -p 27017:27017 --name mongodb -d mongo
 
-// MySql 데이터 베이스 생성 ProductOrder
+// MySql 데이터 베이스 생성 CQRS
 docker exec -it mysql1 bash
 $mysql -uroot -p
-Enter Password : Welcome1
-mysql> create database productorder; -- Create the new database
-mysql> grant all on productorder.* to 'root'@'localhost';
+Enter Password :
+mysql> create database cqrs; -- Create the new database
+mysql> grant all on cqrs.* to 'root'@'localhost';
 
 select host, user from mysql.user;
 
@@ -1094,19 +1010,10 @@ docker exec -it mongodb bash
 ```
 
  1. Product 생성
- POST http://localhost:8080/product/1?name=SoccerBall&price=10&stock=100
-
- ```
- curl -d "name=SoccerBall&price=10&stock=200"  http://localhost:8080/product/1
- ```
-
+ POST http://127.0.0.1:8080/product/1?name=SoccerBall&price=10&stock=100
 
  2. Order 생성
- POST http://localhost:8080/order
-
- ```
- curl -X POST http://localhost:8080/order -d @test.json -H "Content-Type: application/json"
- ```
+ POST http://127.0.0.1:8080/order
 
 JSON
 {
@@ -1117,12 +1024,7 @@ JSON
 	}]
 }
 
- 3. Query DB  
-
 ```
-$docker exec -it mongodb1
-$mongo
-
 > use axon
 > show collections
 events
@@ -1143,16 +1045,14 @@ system.indexes
 }
 
 ```
- 4. MySql Query
-```
-mysql>select * from cqrs.product_entry;
-```
+
+MySql Query
+select * from cqrs.product_entry;
 
 
 GET http://localhost:8080/products
 GET http://localhost:8080/products/1
 
-```
-curl http://localhost:8080/products
-curl http://localhost:8080/products/1  
-```
+
+
+*** 조금 더 해야 한다. ***

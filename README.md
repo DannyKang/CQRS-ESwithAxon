@@ -11,16 +11,16 @@
  - maven : http://maven.apache.org/download.cgi
  - Java IDE(Eclipse, IntelliJ등 )
 
-,,,
-//Source Code 다운로드
+``` bash
+//Source Code 다운로드  
 git clone https://github.com/DannyKang/CQRS-ESwithAxon
 
-//MySql image 다운로드
+//MySql image 다운로드  
 docker pull mysql
 
-//mongodb image 다운로드
+//mongodb image 다운로드  
 docker pull mongo
-,,,
+```
 
 
 ## Axon Framework
@@ -1156,3 +1156,9 @@ GET http://localhost:8080/products/1
 curl http://localhost:8080/products
 curl http://localhost:8080/products/1  
 ```
+
+
+# 참조자료
+
+ - [Axon Framework CQRS EventSourcing](http://edisonxu.com)
+ - [Exploring CQRS Architecture with Axon Framework](http://www.geekabyte.io/2015/10/exploring-cqrs-architecture-with-axon.html)

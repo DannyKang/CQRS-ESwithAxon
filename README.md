@@ -574,7 +574,7 @@ curl -X POST http://localhost:8080/bank
 
 
 ## Example 3
-세번째 예제는 두번제 예제에 Aggregate의 상태정보와 Domain Event를 MySql에 저장하는 예시 입니다.  
+세번째 예제는 두번제 예제에 Aggregate의 Domain Event를 저장하는 EventSourcing을 적용하는 예제입니다.
 Axon에서 제공하는 axon-spring-boot-autoconfigure 기능을 이용해서 자동으로 Domain Event가 MySql로 설정된 Event Store에 저장됩니다.
 
  - axon-spring-boot-autoconfigure 추가
@@ -611,8 +611,10 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
     @ConditionalOnMissingBean (SagaStore.class) @Bean public JpaSagaStore sagaStore (Serializer serializer, EntityManagerProvider entityManagerProvider) { return new JpaSagaStore(serializer, entityManagerProvider);     } }
 
 ```
-위와 같이 자동 설정과 mysql-connector를 설정하고 실행하면, MySQL에 아래와 같은 테이블이 자동 생성되는 것을 볼수 있다.
-여기서 domain_event_entry에 모든 Aggregate의 상태변경을 야기하는 Event가 저장된다.
+
+위와 같이 자동 설정과 mysql-connector를 설정하고 실행하면, MySQL에 아래와 같은 테이블이 자동 생성되는 것을 볼수 있다.  
+여기서 domain_event_entry에 모든 Aggregate의 상태변경을 야기하는 Event가 저장된다.  
+
 
 ![Event Store](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/domain_event_entry)
 
@@ -647,15 +649,18 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
 
 ![Architecture overview of a CQRS Application](https://blobscdn.gitbook.com/v0/b/gitbook-28427.appspot.com/o/assets%2F-L9ehuf5wnTxVIo9Rle6%2F-L9ei79JpweCtX6Qur65%2F-L9eiEg8i2dLcK2ovEZU%2Fdetailed-architecture-overview.png?generation=1523282680564557&alt=media)
 
-CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가지도록 한다. 이 예제에서는 Command-Side는 MongoDB를, Query는 MySQL을 이용하도록 합니다.
+CQRS에서는 Command-Side Repository와 Query-Side Repository를 별도로 가지도록 합니다.    
+이 예제에서는 Command-Side는 MongoDB를, Query는 MySQL을 이용합니다.
 
 #### 시나리오
 >백오피스의 직원이 쇼핑몰에 신규 상품을 생성하면, 고객이 상품 아이템을 선택해서 주문을 하고 결제를 하는 시나리오입니다.
->Product (id, name, stock, price)    
+> *Product (id, name, stock, price)*    
 >상품 추가 프로세스  
 >CreateProductCommand -> new ProductAggregate instance -> ProductCreatedEvent  
->여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용합니다.  
->Order (id, username, payment, products)    
+>
+>
+여기서 주로 Event는 과거에 일어난 이벤트로 과거시제를 주로 사용합니다.  
+>*Order (id, username, payment, products)    *
 >주문 프로세스    
 >CreateOrderCommand-> new OrderAggregateinstance -> OrderCreatedEvent
 

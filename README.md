@@ -464,7 +464,7 @@ Axon는 Aggregate마다 AggregateReposiotyBean을 생성하다.
 
 ### 4. Aggregate에 JPA Entity annotations 추가
 
-위에서 정의한(JpaConfig) Repository를 Aggregate에 할당합니다.
+위에서 정의한(JpaConfig) Repository를 Aggregate에 할당합니다.  
 JPA를 위해서 @Entity, @Id, @Column 추가합니다.
 
 
@@ -575,9 +575,9 @@ curl -X POST http://localhost:8080/bank
 
 ## Example 3
 세번째 예제는 두번제 예제에 Aggregate의 상태정보와 Domain Event를 MySql에 저장하는 예시 입니다.  
-이어 Axon에서 제공하는 axon-spring-boot-autoconfigure 기능을 이용해서 자동으로 Domain Event가 MySql로 설정된 Event Store 저장되는 예제를 돌립니다.
+Axon에서 제공하는 axon-spring-boot-autoconfigure 기능을 이용해서 자동으로 Domain Event가 MySql로 설정된 Event Store에 저장됩니다.
 
- - axon-spring-boot-autoconfigure
+ - axon-spring-boot-autoconfigure 추가
  - JpaConfig Class 삭제
  - BankAccout Entity 선언 삭제
 
@@ -614,7 +614,7 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
 위와 같이 자동 설정과 mysql-connector를 설정하고 실행하면, MySQL에 아래와 같은 테이블이 자동 생성되는 것을 볼수 있다.
 여기서 domain_event_entry에 모든 Aggregate의 상태변경을 야기하는 Event가 저장된다.
 
-![Event Store](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/domain_event_entry.png)
+![Event Store](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/domain_event_entry)
 
  - pay_load
  - pay_load_type

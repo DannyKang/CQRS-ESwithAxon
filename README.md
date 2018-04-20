@@ -20,14 +20,18 @@ docker pull mysql
 
 //mongodb image 다운로드  
 docker pull mongo
+
+//docker container 초기화 (혹시나 동일한 이름이 있을 수 있기 때문에)
+docker rm mysql1
+docker rm mongodb
 ```
 
 
-## Axon Framework
+# Axon Framework
 Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상태정보를 저장하는 방법과 EventSourcing을 지원합니다.
 
 
-### Axon Framework Architecture
+## Axon Framework Architecture
 ![Axon Framework Architecture](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs.png)
 
 
@@ -39,87 +43,85 @@ Axon Framework은 Event-Driven lightweight CQRS framework으로 Aggregate의 상
  - Event, Event Handler
  - Event Bus
 
-### Command/Write Side
+## Command/Write Side
 
-#### Command
+### 1. Command
 
 ![Command, CommandBus, CommandHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-command-handling-component.png)
 
 Command는 시스템에 변경을 일으키는(CUD) 액션을 알리는 객체로, CommandHandler에 데이터를 전달하는 역할을 합니다.
-Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Command의 의도를 명확하게 나타내기 위해서 다음과 같은 명명규칙을 권고합니다.
+Command는 POJO기반으로 생성하기 때문에 어떤 Interface나 Class를 상속할 필요가 없으며, Command의 의도를 명확하게 나타내기 위해서 다음과 같은 명명규칙을 권고합니다.  
  ex) CancelAppointmentCommand, AddItemCommand 등
 
-#### Command Bus
+### 2. Command Bus
 Command Bus는 Command를 받아서 해당 Command Handler에 라우팅 역할을 하는 컴포넌트(Message Dispatching)입니다.
 
  - SimpleCommandBus
  - AsynchronousCommandBus : 비동기
  - DisruptorCommandBus : 분산환경
 
-#### Command Handler
-Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 합니다.
-하나의 Command는 하나의 Command Handler만 가질 수 있습니다.
+ ``` java
+  @Bean
+   public SimpleCommandBus commandBus() {
+     SimpleCommandBus simpleCommandBus =
+                      new SimpleCommandBus();
+
+     // This manually subscribes the command handler:
+     // DebitAccountHandler to the commandbus
+     simpleCommandBus.subscribe(DebitAccount.class.getName(),
+                      new DebitAccountHandler());
+         return simpleCommandBus;
+   }
+ ```
+
+
+### 3. Command Handler
+Command Handler는 command를 받아서 Action를 처리하는 처리기 역할을 합니다.  
+하나의 Command는 하나의 Command Handler만 가질 수 있습니다.  
 (반면 Event는 여러개의 Event Handlder를 가질 수 있습니다.)
 
-**Command Handler 생성 방법**
+****Command Handler 생성 방법****
  - CommandHandler 인터페이스 상속
  - Spring F/W를 사용하는 경우 *@CommandHanlder* 사용 (AnnotationCommandHandlerBeanPostProcessor)
 
-```java
- @Bean
-  public SimpleCommandBus commandBus() {
-    SimpleCommandBus simpleCommandBus =
-                     new SimpleCommandBus();
 
-    // This manually subscribes the command handler:
-    // DebitAccountHandler to the commandbus
-    simpleCommandBus.subscribe(DebitAccount.class.getName(),
-                     new DebitAccountHandler());
-        return simpleCommandBus;
-  }
-```
 
-#### Command Gateway
+### 4. Command Gateway
 Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문입니다.
 
 
-#### Repository
+### 5. Repository (추가 필요)
 
 ![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
 
-Aggregate의 상태변화를 저장합니다.
+Repository는 Aggregate의 상태정보나, Event를 저장합니다.
 
  - GenericJpaRepository
  JPA를 구현하기 위해서는 EntityManager를 직접 구현해야 한다.
 
 
-
-
-### Query/Read Side
+## Query/Read Side
 
 ![Event, Event Bus, EventHandlers](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqrs-events.png)
 
 
 
-#### Event
-Command/Write 에서, Domain Model/Aggregate에 상태를 변경했다면, 이 상태변화(Domain Event)를 전파하는 역할을 하는것이 Event입니다.  
+### 1. Event
+Command(Write) 에서, Domain Model/Aggregate에 상태를 변경했다면, 이 상태변화(Domain Event)를 전파하는 역할을 하는것이 Event입니다.  
 Command Handler는 변경사항(Domain Event)를 만들어서 Event Bus를 통해서 Event Handler에 Event를 전달합니다.  
-따라서 Event는 과거에 일어난 사건을 기술하는 것으로 주로 과거형을 사용합니다.
+Command가 앞으로 일어날일을 기술하는데 반해 Event는 과거에 일어난 사건(이미 일어난 사건)을 기술하는 것으로 주로 과거형을 사용합니다.
 
  ex) AccountAddedEvent, ItemDeletedEvent 등
 
-#### Event Handler
-전달된 Event를 이용하여 Query 전용 (Material View) Storage에 데이터를 생성합니다.
-Command-Commandler 쌍이 오직 하나만 있어야 하는데 반해서, 하나의 Event에 대해서, 여러개의 Event Handler가 있을 수 있습니다.
+### 2. Event Handler
+전달된 Event를 이용하여 Query 전용 (Material View) Storage에 데이터를 생성합니다.  
+Command-Commandler 쌍이 1:1로 각각 하나씩만 있어야 하는데 반해서, Event는 하나의 Event에 대해서, 여러개의 Event Handler가 있을 수 있습니다.
 
 
-
-
-
-
+#### Axon framework 이용하기
 
 Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 됩니다.
-```
+``` java
 <dependency>
   <groupId>org.axonframework</groupId>
   <artifactId>axon-core</artifactId>
@@ -140,17 +142,11 @@ Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 됩
 
 
 ## Example 1
-첫번째 예제애서는 은행 계좌에 예금을 입출금하는 예제를 이용하여 Axon Framework의 기본적인 작동 원리를 이해합니다.
+첫번째 예제에서는 은행 계좌에 예금을 입/출금하는 예제를 이용하여 Axon Framework의 기본적인 작동 원리를 이해합니다.
 
 
 ### Scenairio
- 은행 계죄를 개설하고, 입/출금(Command)을 생성합니다.
-
-
-### Aggregate
- Collection of Objects (Entity 집합체)  
- **DDD에서 약간 내용 추가 필요**
-
+ 은행 계좌를 개설하고, 입/출금(Command)을 생성합니다.
 
 #### BankAccount 클래스
 
@@ -164,6 +160,9 @@ Axon framework을 이용하기 위해서는 Maven dependency를 추가하면 됩
  }
 
 ```
+#### Aggregate
+ Collection of Objects (Entity 집합체)  
+
  @Aggregate을 이용해서 Aggregate Class를 선언할 수 있으며, 각각의 Aggregate을 구분하기 위한 식별자(GUID)를 가지며, @AggregateIdentifier 로 선언합니다.
 
 AggregateIdentifier는 비교를 위해서
@@ -283,7 +282,7 @@ public class MoneyWithdrawnEvent {
 
 #### CommandHandler
 Axon에서는 Command Handler를 지정하기 위해서 @CommandHandler를 사용합니다.  
-아래와 같이 설정하면, Command가 발생할때 Command-CommandHanlder쌍(key-value)으로 작동합니다.
+아래와 같이 설정하면, Command가 발생할때 Command-CommandHandler쌍(key-value)으로 작동합니다.
 
 ```java
 @CommandHandler
@@ -298,11 +297,11 @@ public void handle(WithdrawMoneyCommand command){
 
 ```
 위의 예제는 단순히 Event를 생성하고, static method인 apply를 호출해서 event를 발생시킨다.  
-**Axon은 apply Method를 발생시키면 내부적으로 Event Store에 해당 이벤트를 저장하고, EventBus를 통해서 Event를 Publish합니다.**
+***Axon은 apply Method를 발생시키면 내부적으로 Event Store에 해당 이벤트를 저장하고, EventBus를 통해서 Event를 Publish합니다.***
 
 
 #### EventHandler
-@EventHanldere는 event 처리기 역할를 하는 메소드를 지정합니다.
+@EventHandler는 event 처리기 역할를 하는 메소드를 지정합니다.
 
 ```java
 
@@ -327,7 +326,7 @@ public void on(MoneyWithdrawnEvent event){
 
 ```
 
-#### Application Config
+#### Application Main
 
 ```java
 public class Application {
@@ -454,17 +453,19 @@ public class JpaConfig {
 }
 ```
 
-현재 시점(Axon version 3.3 이상)에서는 @EnableAxon 이 depricated 되었고 "axon-spring-boot-autoconfigure"로 대체되었습니다.
+현재 시점(Axon version 3.3 이상)에서는 @EnableAxon 이 deprecated 되었고 "axon-spring-boot-autoconfigure"로 대체되었습니다.  
+이렇게 설정하면 자동으로 Bean이 주입(inject)됩니다.   
 
-이렇게하면 자동으로 설정하면 모든 Bean이 주입(inject)됩니다.   
-위에서는 Event Store를 InMemory에 (InMemoryEventStorageEngine) 저장하도록 설정하고, Aggregate의 상태정보는 MySQL에 저장합니다.
-Axon는 Aggregate마다 AggregateReposiotyBean을 생성하다.  
+위에서는 EventStoreEnginge를 InMemory에 (InMemoryEventStorageEngine) 저장하도록 설정하고, Aggregate의 상태정보는 MySQL에 저장합니다.
+Axon는 Aggregate마다 AggregateReposiotyBean을 생성하다.
+
 위 예제에서는 GenericJpaRepository로 BankAccout Aggregate의 상태정보를 저장합니다.
 
 
 ### 4. Aggregate에 JPA Entity annotations 추가
 
 위에서 정의한(JpaConfig) Repository를 Aggregate에 할당합니다.
+JPA를 위해서 @Entity, @Id, @Column 추가합니다.
 
 
 
@@ -498,9 +499,7 @@ public class BankAccount {
 
 
 ### 5. Rest Controller
-***변경 필요 ***
-***입력 출력 REST EndPoint 추가 ****
-
+입/출금을 위한 REST Endpoint 추가
 
 ``` java
 @RestController
@@ -543,7 +542,7 @@ public class Application {
 ### Hands-On
  1. mysql 실행
 
- ***MySQL Docker Image***
+ ****MySQL용 Docker Image****
  ```
  //MySql image 다운로드
  docker pull mysql
@@ -565,17 +564,17 @@ public class Application {
  ```
 
  2. App 실행
- 3. POST http://localhost:8008/bank
-   PostMan등을 이용해서  http://localhost:8008/bank POST Request!
+ 3. POST http://localhost:8080/bank
+   PostMan등을 이용해서  http://localhost:8080/bank POST Request!
 ```
-curl -X POST http://localhost:8008/bank
+curl -X POST http://localhost:8080/bank
 ```
 
 
 
 
 ## Example 3
-세변째 예제는 두번제 예제에 Aggregate의 상태정보와 Domain Event를 Event Store에 저장하는 예시 입니다.  
+세번째 예제는 두번제 예제에 Aggregate의 상태정보와 Domain Event를 MySql에 저장하는 예시 입니다.  
 이어 Axon에서 제공하는 axon-spring-boot-autoconfigure 기능을 이용해서 자동으로 Domain Event가 MySql로 설정된 Event Store 저장되는 예제를 돌립니다.
 
  - axon-spring-boot-autoconfigure
@@ -627,10 +626,10 @@ AxonAutoConfiguration 내부에서 CommandBus, EventBus, EventStorageEngine, Ser
  ### Hands-on
   1. mysql 실행
   2. App 실행
-  3. POST http://localhost:8008/bank
+  3. POST http://localhost:8080/bank
 
 ```
- curl -X POST http://localhost:8008/bank
+ curl -X POST http://localhost:8080/bank
 ```
 
 ```

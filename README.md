@@ -90,7 +90,7 @@ Command Handler는 command를 받아서 Action를 처리하는 처리기 역할�
 Command bus를 직접구현할 수도 있지만, 주로 Command Gateway를 사용하는게 편한데, command 실패시 Retry등의 메커니즘이 적용 되기 때문입니다.
 
 
-### 5. Repository 
+### 5. Repository
 
 ![Repository](https://github.com/DannyKang/CQRS-ESwithAxon/blob/master/images/cqlp-repository-side.png)
 
@@ -1151,7 +1151,7 @@ JSON
  3. Query DB  
 
 ```
-$docker exec -it mongodb1
+$docker exec -it mongodb
 $mongo
 
 > use axon
